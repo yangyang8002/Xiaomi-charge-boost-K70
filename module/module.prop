@@ -1,6 +1,6 @@
 id=mi_charge_boost
 name=小米/红米充电加速模块
-version=v8.8.0-k70
-versionCode=880
+version=v8.8.1-k70
+versionCode=881
 author=酷安@鱼楠（K70 适配：yangyang8002）
 description=红米 K70 / K70 Pro（vermeer / manet，SM8550 / SM8650）通用模式适配版 ｜ 基于 aichiyunan/Xiaomi-charge-boost v8.7.3

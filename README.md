@@ -6,7 +6,7 @@
 
 衍生自 [`aichiyunan/Xiaomi-charge-boost`](https://github.com/aichiyunan/Xiaomi-charge-boost) v8.7.3，本分支专注把 **红米 K70 / K70 Pro（`vermeer` / `manet`，SM8550 / SM8650）** 纳入支持
 
-![version](https://img.shields.io/badge/version-v8.8.0--k70-orange)
+![version](https://img.shields.io/badge/version-v8.8.1--k70-orange)
 ![k70](https://img.shields.io/badge/Redmi%20K70-vermeer%20%7C%20manet-critical)
 ![soc](https://img.shields.io/badge/SoC-SM8550%20%7C%20SM8650%20%7C%20SM8750%20%7C%20SM8850%20%7C%20SM8950%20%7C%20SM8975-blue)
 ![kernel](https://img.shields.io/badge/kernel-5.15%20%7C%206.6%20%7C%206.12%20%7C%206.18-blueviolet)
@@ -21,12 +21,12 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| [`releases/Micharge-boost_v8.8.0-k70.zip`](releases/Micharge-boost_v8.8.0-k70.zip) | 刷入包：已适配机型按模板写入；红米 K70 / K70 Pro 与同处理器其它小米/红米机型按通用模式安装（dtbo 逐项比对） |
+| [`releases/Micharge-boost_v8.8.1-k70.zip`](releases/Micharge-boost_v8.8.1-k70.zip) | 刷入包：已适配机型按模板写入；红米 K70 / K70 Pro 与同处理器其它小米/红米机型按通用模式安装（dtbo 逐项比对） |
 | [`module/`](module/) | 模块完整源码 |
 | [`tools/`](tools/) | K70 原厂 dtbo 采集工具 + 打包脚本 |
 | [`CHANGELOG.md`](CHANGELOG.md) | 全部版本更新日志（v8.0.7 起，历史刷入包在 `releases/`） |
 
-md5：`d5a993feea4ab4e0fa645638048721ef`（2,089,183 字节）
+md5：`26483ce4c3fdc7094003339feeacf46a`（2,089,183 字节）
 
 > 打包可复现：`python tools/build-zip.py`（条目用正斜杠、权限按安卓常规、时间戳固定）
 
@@ -40,13 +40,35 @@ md5：`d5a993feea4ab4e0fa645638048721ef`（2,089,183 字节）
 | 红米 K70 Pro | `manet` | SM8650 骁龙 8 Gen 3 | ✅ 可刷入（通用模式）· ⏳ 原厂 dtbo 模板待补 |
 | 红米 K70E（`duchamp`）、K70 至尊版（`rothko`） | — | 联发科天玑 | ❌ 不做适配，刷入时提示后退出 |
 
-**已生效**：模块本体、充电监测 WebUI、公版 PPS 解锁、低电量延迟关机、温控解除、私有协议重试。
+**已生效**：模块本体、充电监测 WebUI、充电记录、公版 PPS 解锁、低电量延迟关机。
 
 **dtbo 侧**（通用模式，逐项比对）：
 
 - 不依赖机型模板就会写的项：`drop_fv_cycle`（关闭循环降压）、`drop_fcc_para`（循环降流门槛）、`quick_chg_fv_hys` 还原、WebUI 满充截止电压
 - 需要模板里存在对应节点行才写的项：快充电流、断充温度、关机电压
 - 刷入时这三项的菜单默认都是「不修改」，保证第一次一定能装上模块本体；想试逐项比对可在第 1 步选第 2 项，失败会退出安装但**分区不改动**
+
+### ❌ K70 上用不了的三个功能（硬件框架原因）
+
+充电配置页里「解除温控降速」「实时充电电流」「快充断流秒恢复」会显示**本机不支持**。
+
+这三个功能不是改 dtbo，而是直接读写小米 **MCA 充电框架**的 sysfs 节点：
+
+| 功能 | 需要的节点 / 模块 |
+| --- | --- |
+| 解除温控降速 | `/sys/class/xm_power/charger/charger_thermal/wired_thermal_remove` |
+| 实时充电电流 | `/sys/class/xm_power/charger/charger_thermal/wired_chg_curr` |
+| 快充断流秒恢复 | 内核模块 `/sys/module/mca_strategy_quickchg` |
+
+红米 K70 走的是高通 **`qcom-battery`** 布局（所以 PPS 能读到 `pd_verifed`），没有 MCA 的 `/sys/class/xm_power` 节点树，因此这三个功能在本机无法实现。这与 K70 适配无关，也不是 bug —— 模块已正确识别并优雅降级。
+
+想确认/想看有没有别名节点，跑一次诊断（**只读**）：
+
+```sh
+su -c 'sh /sdcard/Download/k70-nodes.sh'
+```
+
+详见 [`tools/k70-nodes-readme.md`](tools/k70-nodes-readme.md)。
 
 **怎么补完整适配**：在已 root 的 K70 上跑一次采集脚本，把产物提过来即可生成真正的原厂模板：
 

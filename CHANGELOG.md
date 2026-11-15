@@ -2,6 +2,32 @@
 
 所有版本刷入包都在 [`releases/`](releases/) 目录。
 
+## v8.8.1-k70（2026-11-15）
+
+真机反馈：模块在 K70 上正常安装、机型识别正确，但充电配置页有三个功能显示「本机不支持」。本版补充诊断能力并说明原因。
+
+### 结论：这三个功能 K70 做不了（不是 bug）
+
+| 功能 | 依赖 | K70 现状 |
+| --- | --- | --- |
+| 解除温控降速 | `xm_power/charger/charger_thermal/wired_thermal_remove` | 节点不存在 |
+| 实时充电电流 | `xm_power/charger/charger_thermal/wired_chg_curr` | 节点不存在 |
+| 快充断流秒恢复 | 内核模块 `mca_strategy_quickchg` | 不存在 |
+
+判断依据：公版 PPS 在 K70 上能读到 `pd_verifed = 1`，而 PPS 读的是 `/sys/class/qcom-battery/pd_verifed`。这说明 **K70 走的是高通 `qcom-battery` 布局，没有小米 MCA 的 `/sys/class/xm_power` 节点树**。这三个「免重启」功能是直接写 MCA 节点实现的，所以在本机无法实现；模块已优雅降级（守护进程不启动，WebUI 如实显示「本机不支持」）。
+
+不受影响：模块本体、充电记录、WebUI、公版 PPS、低电量延迟关机、dtbo 充电参数。
+
+### 新增
+
+- `tools/k70-nodes.sh`：只读充电节点清单。输出机型/系统、关键目录存在性、11 个候选节点的路径与值、MCA 内核模块、`xm_power` 目录树、`qcom-battery` 全部节点、`Charging_Adapter` 等其它 class 目录、11 个「别名」节点的全盘搜索、dmesg 线索，最后给出结论并判定本机属于哪种充电框架布局
+- `tools/k70-nodes-readme.md`：使用说明与三种可能结果
+- 支持 `MCB_SYSROOT` 环境变量指向假根目录，方便在 PC 上离线验证脚本
+
+### 待确认
+
+如果 `k70-nodes.sh` 第 7 节（别名节点搜索）在真机上搜到了等价节点，说明可以补适配；届时按报告里的实际路径补 `tr.sh` / `cc.sh` 即可。目前没有真机节点数据，不做猜测性写入。
+
 ## v8.8.0-k70（2026-11-15）
 
 本仓库是衍生分支，基于上游 [`aichiyunan/Xiaomi-charge-boost`](https://github.com/aichiyunan/Xiaomi-charge-boost) v8.7.3，目标是把**红米 K70 系列**（骁龙 SM8550 / SM8650）纳入支持范围。
