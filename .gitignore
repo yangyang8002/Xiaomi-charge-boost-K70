@@ -1,0 +1,5 @@
+﻿# Python 缓存
+__pycache__/
+*.pyc
+# 打包时忽略
+*.zip.tmp

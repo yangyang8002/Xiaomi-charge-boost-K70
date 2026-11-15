@@ -19,8 +19,17 @@ fi
 if ! PCR=$(platform_check "$SOC"); then
   ui_print "********************"; ui_print " 小米/红米充电加速模块"; ui_print "********************"
   ui_print "! 非适配机型：处理器 $PCR，内核 ${KV:-未知}"
-  ui_print "! 本模块只适配骁龙 SM8750 / SM8850 / SM8950 / SM8975"
+  ui_print "! 本模块只适配骁龙 SM8550 / SM8650 / SM8750 / SM8850 / SM8950 / SM8975"
   abort "! 已退出安装，模块未刷入"
+fi
+# v8.8.0：8550 / 8650（红米K70 vermeer、红米K70 Pro manet 等）还没有已收录的原厂 dtbo 模板，
+# 只能通用模式安装：dtbo 逐项比对全部已收录模板，只写原厂值吻合的项，比对不到就不改 dtbo。
+# TL=1 时后面各步 dtbo 菜单默认选「不修改」，保证第一次刷入一定能装上模块本体
+TL=0; tpl_soc "$SOC" || TL=1
+if [ $TL = 1 ]; then
+  ui_print "- 处理器 SM$SOC 暂无已收录原厂 dtbo 模板：通用模式"
+  ui_print "  dtbo 逐项比对，只写原厂值吻合的项；比对不到就保持本机原厂（不会乱写）"
+  ui_print "  想完整适配可先跑 tools/k70-probe.sh 取原厂 dtbo，见 tools/k70-probe-readme.md"
 fi
 # 按机型写模块名与机型代号（运行时脚本、WebUI 读 $MODPATH/model）
 echo $CODE > $MODPATH/model
@@ -143,7 +152,11 @@ IS_DADA=0; [ "$CODE" = dada ] && IS_DADA=1
 [ "$GEN" = 1 ] && out "- 非已适配机型（$(model_names) 之外）：通用安装，dtbo 逐项比对原厂值，只写吻合的项，FFC 截止电压保持本机原厂"
 DI=-; DT=-; DV=-; DZ=-
 fa(){ echo "$(($1/1000)).$(($1%1000/100))A" | sed 's/\.0A$/A/'; }
-if [ "$GEN" = 1 ]; then
+if [ $TL = 1 ]; then
+  # 没有原厂模板的处理器（8550/8650）：默认不改 dtbo，先保证模块本体装得上；仍允许手动尝试
+  menu 1 "dtbo 快充电流" "SM$SOC 暂无原厂 dtbo 模板，逐项比对不一定有吻合项，失败会退出安装" "不修改电流（推荐）" "仍要尝试写入 $(fa $MX)（模块上限）"
+  [ $SEL = 2 ] && DI=$MX
+elif [ "$GEN" = 1 ]; then
   menu 1 "dtbo 快充电流" "只改与已适配机型原厂值逐项吻合的满速温区，其余保持本机原厂" "修改为 $(fa $MI)" "修改为 $(fa $MX)（模块上限）" "不修改电流"
   case $SEL in 1) DI=$MI;; 2) DI=$MX;; esac
 elif [ $IS_DADA = 1 ]; then
@@ -154,12 +167,22 @@ else
   menu 1 "dtbo 快充电流" "修改后满速温区以该电流满速（原厂 $(fa $MI)）" "修改为 $(fa $MI)（原厂值）" "修改为 $(fa $MX)（模块上限）" "不修改电流"
   case $SEL in 1) DI=$MI;; 2) DI=$MX;; esac
 fi
-menu 2 "dtbo 满速/断充温度" "设定温度以下满速，超过停充" "修改为 55°C" "不修改温度"
-[ $SEL = 1 ] && DT=55
+if [ $TL = 1 ]; then
+  menu 2 "dtbo 满速/断充温度" "没有原厂模板时同样不建议改，和电流一起写入" "不修改温度（推荐）" "修改为 55°C"
+  [ $SEL = 2 ] && DT=55
+else
+  menu 2 "dtbo 满速/断充温度" "设定温度以下满速，超过停充" "修改为 55°C" "不修改温度"
+  [ $SEL = 1 ] && DT=55
+fi
 # 关机电压只给 2800mV 一档（用户 2026-10-21 要求；v8.6.4 恢复 8.6.3 方案）
 V0T="原厂 ${V0}mV"; [ "${GEN:-0}" = 1 ] && V0T="原厂值以本机为准"
-menu 3 "dtbo 内核关机电压" "电池电压降到该值才关机（$V0T）" "修改为 2800mV" "不修改关机电压"
-[ $SEL = 1 ] && DV=2800
+if [ $TL = 1 ]; then
+  menu 3 "dtbo 内核关机电压" "电池电压降到该值才关机（$V0T）" "不修改关机电压（推荐）" "修改为 2800mV"
+  [ $SEL = 2 ] && DV=2800
+else
+  menu 3 "dtbo 内核关机电压" "电池电压降到该值才关机（$V0T）" "修改为 2800mV" "不修改关机电压"
+  [ $SEL = 1 ] && DV=2800
+fi
 if [ "$HZ" = 1 ]; then
   menu 4 "屏幕超频" "华星屏添加 132/144/155/165Hz 刷新率档位" "屏幕超频 165Hz" "不超频屏幕"
   [ $SEL = 1 ] && DZ=165

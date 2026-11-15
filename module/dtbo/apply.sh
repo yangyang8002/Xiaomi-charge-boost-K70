@@ -11,6 +11,9 @@ mkdir(){ if [ "$1" = -p ]; then shift; _r=0; for _d in "$@"; do case $_d in /*) 
 # 小米私有协议功率：不走参数，读 /data/adb/mi_charge_boost/proto（机型可选档位见 models.sh PWO，其它=原厂），由 WebUI 开关写入
 # v8.4.9 起多机型：机型参数见 ../models.sh；模板按原厂镜像头部哈希从 stock.list 选（<代号>_<布局>.tpl，dada 仍用 dada.tpl）
 # v8.7.0 起模板按处理器分目录：dtbo/<SOC>/（8750 / 8850 / 8950 / 8975，见 models.sh SOC），屏幕超频 hz165.tpl、预改还原规则只在 8750/（小米15）
+# v8.8.0：8550（红米K70 vermeer）/ 8650（红米K70 Pro manet）没有 dtbo/8550/、dtbo/8650/ 模板目录，
+#   也不在 stock.list 里 —— 一律走 TPL=auto 逐项比对：拿全部已收录模板试跑，只写与本机原厂值吻合的项，
+#   一项都不吻合就报错退出、不改分区（不会乱写）。这类机型的 <代号>.avb 也不存在，AVB 走下面的通用模板兜底
 PF=${PROTO_F:-/data/adb/mi_charge_boost/proto}; PW=$(cat $PF 2>/dev/null); case "$PW" in 100|120) ;; *) PW=-;; esac
 H=${0%/*}; D=${DTBO_D:-/data/adb/mi_charge_boost/dtbo}
 MCB_ROOT=${H%/*}; . $MCB_ROOT/models.sh
@@ -232,7 +235,10 @@ TMP=; for b in /dev /data/local/tmp $D; do t=$b/mcb_dtbo.$$; rm -rf $t; mkdir -p
 [ -n "$TMP" ] || { echo "! 无法创建临时目录（/dev、/data/local/tmp、$D 都不可写）"; exit 1; }
 trap 'cd /; rm -rf $TMP' EXIT; cd /
 # 移植系统的 dtbo 可能没有 AVB 尾部：给每个模板配上原厂 AVB 模板（算法 NONE，只更新哈希）
-AVB=$TD/$CODE.avb; [ -f $AVB ] || AVB=$(ls $H/*/$CODE.avb 2>/dev/null | head -1); [ -f "$AVB" ] || AVB=$H8/dada.avb
+AVB=$TD/$CODE.avb; [ -f $AVB ] || AVB=$(ls $H/*/$CODE.avb 2>/dev/null | head -1)
+# v8.8.0：本机型没有原厂 AVB 模板（8550 / 8650 等未收录机型）时借用通用模板。
+# 解锁 BL 的设备 AVB 校验不拦，可以正常用；想锁回 BL 之前必须先卸载模块还原原厂 dtbo
+[ -f "$AVB" ] || { AVB=$H8/dada.avb; echo "- 本机型没有原厂 AVB 模板，按通用模板重算 AVB 哈希（解锁设备可用；锁回 BL 前请先还原原厂 dtbo）"; }
 for n in r chk lay; do cp $AVB $TMP/$n.avb; done
 # 本槽标记为已修改却没有本槽原版备份：只有确认分区已被 OTA/其它工具刷新（有效写入记录且与分区不符）才重新备份，
 # 否则（分区仍是本模块写的，或写入记录缺失/损坏）中止，绝不拿当前分区顶替原版

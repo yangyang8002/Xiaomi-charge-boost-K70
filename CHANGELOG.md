@@ -2,6 +2,45 @@
 
 所有版本刷入包都在 [`releases/`](releases/) 目录。
 
+## v8.8.0-k70（2026-11-15）
+
+本仓库是衍生分支，基于上游 [`aichiyunan/Xiaomi-charge-boost`](https://github.com/aichiyunan/Xiaomi-charge-boost) v8.7.3，目标是把**红米 K70 系列**（骁龙 SM8550 / SM8650）纳入支持范围。
+
+### 新增机型
+
+| 机型 | 代号 | 处理器 | 适配方式 |
+| --- | --- | --- | --- |
+| 红米 K70（同 POCO F6 Pro） | `vermeer` | SM8550 骁龙 8 Gen 2 | 通用模式（暂无原厂 dtbo 模板） |
+| 红米 K70 Pro | `manet` | SM8650 骁龙 8 Gen 3 | 通用模式（暂无原厂 dtbo 模板） |
+
+- 处理器校验放开到 SM8550 / SM8650，这两款处理器不再提示「非适配机型」直接退出安装
+- `vermeer` / `manet` 加入机型识别表：刷入页与 WebUI 直接显示「REDMI K70 / REDMI K70 Pro」，不再只显示系统通用名
+- 红米 K70E（`duchamp`）、红米 K70 至尊版（`rothko`，同小米 14T Pro）是联发科天玑平台，仍按上游策略提示「非适配机型」并退出安装
+
+### dtbo 行为（重要）
+
+- 8550 / 8650 没有 `dtbo/8550/`、`dtbo/8650/` 模板目录，也不在 `stock.list` 里，所以一律走 `TPL=auto` 逐项比对：拿全部已收录模板试跑本机原厂 dtbo，只写与原厂值吻合的项，一项都不吻合就报错退出、分区不改动
+- 这两款处理器没有 `<代号>.avb` 原厂 AVB 模板，借用通用模板重算 AVB 哈希。解锁 BL 的设备可以正常用；**想锁回 BL 之前必须先卸载模块还原原厂 dtbo**
+- 因为没有原厂模板，刷入时 dtbo 三步（快充电流 / 断充温度 / 关机电压）默认都选「不修改」，保证第一次刷入一定能装上模块本体；想试逐项比对可以在第 1 步选第 2 项，失败会退出安装但分区不改动
+- 不依赖机型模板、只要节点存在就会生效的项：`drop_fv_cycle` 循环降压关闭、`drop_fcc_para` 循环降流门槛、`quick_chg_fv_hys` 还原，以及 WebUI 的满充截止电压（`dtbofv` 直接读本机 dtbo 实际值生成规则）
+- 需要模板里有对应节点行（逐项比对吻合才写）的项：快充电流、断充温度、关机电压
+
+### 新增工具
+
+- `tools/k70-probe.sh`：在已 root 的红米 K70 上运行，**只读不写**，导出 `dtbo.img`、DT 节点清单、AVB 尾部（salt / digest）和现成的 `stock.list` 行，用来补齐真正的原厂模板。用法见 [`tools/k70-probe-readme.md`](tools/k70-probe-readme.md)
+- `tools/ftd-parse.py`：PC 端解析同一个 dtbo，`--emit-tpl` / `--emit-avb` 生成模板草稿
+
+### 未完成（需要真机 dtbo）
+
+- 红米 K70 / K70 Pro 的原厂 `dtbo/8550/<代号>_os*.tpl`、`dtbo/8650/<代号>_os*.tpl` 与 `<代号>.avb` 还没有。这些必须从真机原厂镜像生成，不能凭空编造，否则会写坏分区
+- 拿到 `tools/k70-probe.sh` 的输出后即可补全；补全后这两款机型升级为完整模式（电流 / 温度 / 关机电压都能改）
+
+### 仓库维护
+
+- 新增 `.gitattributes`（`* text=auto eol=lf`）：仓库里全是安卓 shell 脚本，工作区若被 Windows 的 `core.autocrlf` 转成 CRLF，`sh` 解析会直接坏掉（heredoc、`case` 分支都会失效，打出来的 zip 也是废的）。已把现有 64 个文本文件统一成 LF
+- 新增 `tools/build-zip.py`，刷入包可以一条命令复现，并自带条目校验（关键文件齐全、无反斜杠、无 `./` 前缀、zip 完整）
+- 关于 `<代号>.avb` 的一个实测结论：712 字节模板 = `[8 字节 dtbo 分区大小(大端 u64)][64 字节 AVB footer][vbmeta]`，仓库现有 15 个模板的这 8 字节正好是 8 / 18 / 22 MiB；而 **15 个模板的 salt 各不相同**，所以 salt 确实是按机型走的，不能拿别的机型的模板顶替 —— 这也正是 K70 必须从真机取的原厂材料
+
 ## v8.7.3（2026-11-14）
 
 - 修复部分系统（如 ColorOS 移植包）刷入失败：「mkdir: can't create directory '/': Invalid argument」。这类系统上 mkdir("/") 返回 EINVAL，`mkdir -p` 从根目录逐级创建时直接失败，导致 dtbo 数据目录被判为不可写。所有用到 `mkdir -p` 的脚本改为跳过已存在的目录、只创建缺的那一级

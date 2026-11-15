@@ -1,0 +1,16 @@
+# 仓库里全是安卓 shell 脚本，CRLF 会让 sh 解析失败（heredoc、case 分支都会坏）。
+# 统一按 LF 存盘，二进制文件不做任何转换。
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.prop text eol=lf
+*.md   text eol=lf
+*.tpl  text eol=lf
+*.list text eol=lf
+*.avb  binary
+*.bin  binary
+*.ko   binary
+*.apk  binary
+*.img  binary
+*.zip  binary
+*.tar.gz binary

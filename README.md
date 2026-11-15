@@ -1,12 +1,15 @@
 <div align="center">
 
-# ⚡ Xiaomi-charge-boost 充电加速
+# ⚡ Xiaomi-charge-boost 充电加速 · 红米 K70 适配分支
 
 **小米 / 红米 骁龙系列充电增强模块**
 
-![version](https://img.shields.io/badge/version-v8.7.3-orange)
-![soc](https://img.shields.io/badge/SoC-SM8750%20%7C%20SM8850%20%7C%20SM8950%20%7C%20SM8975-blue)
-![kernel](https://img.shields.io/badge/kernel-6.6%20%7C%206.12%20%7C%206.18-blueviolet)
+衍生自 [`aichiyunan/Xiaomi-charge-boost`](https://github.com/aichiyunan/Xiaomi-charge-boost) v8.7.3，本分支专注把 **红米 K70 / K70 Pro（`vermeer` / `manet`，SM8550 / SM8650）** 纳入支持
+
+![version](https://img.shields.io/badge/version-v8.8.0--k70-orange)
+![k70](https://img.shields.io/badge/Redmi%20K70-vermeer%20%7C%20manet-critical)
+![soc](https://img.shields.io/badge/SoC-SM8550%20%7C%20SM8650%20%7C%20SM8750%20%7C%20SM8850%20%7C%20SM8950%20%7C%20SM8975-blue)
+![kernel](https://img.shields.io/badge/kernel-5.15%20%7C%206.6%20%7C%206.12%20%7C%206.18-blueviolet)
 ![root](https://img.shields.io/badge/root-KernelSU%20%7C%20Magisk-green)
 ![author](https://img.shields.io/badge/author-酷安@鱼楠-red)
 
@@ -18,13 +21,40 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| [`releases/Micharge-boost_v8.7.3.zip`](releases/Micharge-boost_v8.7.3.zip) | 刷入包：已适配机型按模板写入；同处理器的其它小米/红米机型按通用模式安装（dtbo 逐项比对） |
+| [`releases/Micharge-boost_v8.8.0-k70.zip`](releases/Micharge-boost_v8.8.0-k70.zip) | 刷入包：已适配机型按模板写入；红米 K70 / K70 Pro 与同处理器其它小米/红米机型按通用模式安装（dtbo 逐项比对） |
 | [`module/`](module/) | 模块完整源码 |
+| [`tools/`](tools/) | K70 原厂 dtbo 采集工具 + 打包脚本 |
 | [`CHANGELOG.md`](CHANGELOG.md) | 全部版本更新日志（v8.0.7 起，历史刷入包在 `releases/`） |
 
-md5：`795353b6201b32d00a6ce5e2f3f532b5`
+md5：`d5a993feea4ab4e0fa645638048721ef`（2,089,183 字节）
 
-> v8.6.5 起只发布 Micharge-boost 一个刷入包，Mi8Elite 专版停止更新。
+> 打包可复现：`python tools/build-zip.py`（条目用正斜杠、权限按安卓常规、时间戳固定）
+
+---
+
+## 🔧 红米 K70 适配状态
+
+| 机型 | 代号 | 处理器 | 当前状态 |
+| --- | --- | --- | --- |
+| 红米 K70（同 POCO F6 Pro） | `vermeer` | SM8550 骁龙 8 Gen 2 | ✅ 可刷入（通用模式）· ⏳ 原厂 dtbo 模板待补 |
+| 红米 K70 Pro | `manet` | SM8650 骁龙 8 Gen 3 | ✅ 可刷入（通用模式）· ⏳ 原厂 dtbo 模板待补 |
+| 红米 K70E（`duchamp`）、K70 至尊版（`rothko`） | — | 联发科天玑 | ❌ 不做适配，刷入时提示后退出 |
+
+**已生效**：模块本体、充电监测 WebUI、公版 PPS 解锁、低电量延迟关机、温控解除、私有协议重试。
+
+**dtbo 侧**（通用模式，逐项比对）：
+
+- 不依赖机型模板就会写的项：`drop_fv_cycle`（关闭循环降压）、`drop_fcc_para`（循环降流门槛）、`quick_chg_fv_hys` 还原、WebUI 满充截止电压
+- 需要模板里存在对应节点行才写的项：快充电流、断充温度、关机电压
+- 刷入时这三项的菜单默认都是「不修改」，保证第一次一定能装上模块本体；想试逐项比对可在第 1 步选第 2 项，失败会退出安装但**分区不改动**
+
+**怎么补完整适配**：在已 root 的 K70 上跑一次采集脚本，把产物提过来即可生成真正的原厂模板：
+
+```sh
+su -c 'sh /sdcard/Download/k70-probe.sh'
+```
+
+详见 [`tools/k70-probe-readme.md`](tools/k70-probe-readme.md)。脚本**只读，不写任何分区**。
 
 ---
 
@@ -38,7 +68,7 @@ md5：`795353b6201b32d00a6ce5e2f3f532b5`
 | 内核关机电压 | 2800mV / 不修改 | 电池电压降到 2800mV 才关机 |
 | 屏幕超频 | 165Hz / 不超频 | 仅小米15：华星屏添加 132 / 144 / 155 / 165Hz 档位 |
 
-- 模板按处理器代号分目录：`dtbo/8750/`、`dtbo/8850/`、`dtbo/8950/`、`dtbo/8975/`
+- 模板按处理器代号分目录：`dtbo/8750/`、`dtbo/8850/`、`dtbo/8950/`、`dtbo/8975/`（SM8550 / SM8650 暂无模板目录，走通用模式逐项比对）
 - 关闭循环降压与降流：drop_fv_cycle 改 0，drop_fcc_para 循环门槛改 65535
 - 刷入前自动按 A/B 槽位备份当前 dtbo 为原厂镜像，卸载模块即还原；写入校验失败自动回滚
 - 已收录原厂镜像按机型模板写入；未收录镜像（官改包、新底包）自动备份并逐项比对原厂值，只写吻合的项
@@ -71,14 +101,17 @@ md5：`795353b6201b32d00a6ce5e2f3f532b5`
 
 | 处理器 | 内核 | 已适配机型 |
 | --- | --- | --- |
+| SM8550 骁龙 8 Gen 2 | 5.15 / 6.1 | — 无收录模板，红米 K70 `vermeer` / K70 Pro `manet` 走通用模式 |
+| SM8650 骁龙 8 Gen 3 | 5.15 / 6.1 | — 无收录模板，通用模式 |
 | SM8750 骁龙8至尊版 | 6.6 | 小米15、小米15 Pro、红米K80 Pro、红米K90、红米K90至尊版 |
 | SM8850 第五代骁龙8至尊版 | 6.12 | 小米17、17 Pro、17 Pro Max、17 Ultra、17 Max，红米K90 Pro Max、K100 Pro、K100 Pro Max |
 | SM8950 | 6.18 | 小米18 Pro |
 | SM8975 | 6.18 | 小米18 Pro Max |
 
-- 刷入时校验：非小米 / 红米机型、非以上四款处理器（含天玑、玄戒）直接退出安装，模块不刷入；内核版本只识别显示
+- 刷入时校验：非小米 / 红米机型、非以上六款处理器（含天玑、玄戒）直接退出安装，模块不刷入；内核版本只识别显示
 - 以上处理器的其它小米 / 红米机型按通用模式安装，dtbo 逐项比对原厂值，只写吻合的项
-- 天玑、玄戒处理器不做适配
+- SM8550 / SM8650 目前**没有**已收录的原厂 dtbo 模板与 AVB 模板：能装、能改满充截止电压，但快充电流 / 断充温度 / 关机电压要等原厂 dtbo 采集完成（见上面的 K70 适配状态）
+- 天玑、玄戒处理器不做适配（红米 K70E、K70 至尊版属于这一类）
 - 小米15 系统：HyperOS OS4.0.0.6 / 7 / 8 / 16 / 19，OS3.0.2 / 301 / 302 / 303 / 305 / 307；支持 ColorOS 16.1 移植包（自动识别官改 dtbo）
 - Root：KernelSU / Magisk
 
@@ -95,6 +128,10 @@ md5：`795353b6201b32d00a6ce5e2f3f532b5`
 ## ⚠️ 风险提示
 
 修改 DTBO 与充电参数存在风险，大电流、高温充电会加速电池老化。请确认机型与系统版本后再刷入，作者不对任何损坏负责。
+
+- 刷入前会自动按 A/B 槽备份当前 dtbo，写入校验失败会自动回滚；卸载模块会还原原厂 dtbo
+- 红米 K70 / K70 Pro 没有原厂 AVB 模板，借用通用模板重算 AVB 哈希。**解锁 BL 的设备可以正常用；想锁回 BL 之前必须先卸载模块还原原厂 dtbo**
+- 通用模式下若逐项比对一项都不吻合，脚本会报错退出而且**不碰分区**，不会写进不可预期的值
 
 ---
 

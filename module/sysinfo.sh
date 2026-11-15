@@ -3,8 +3,9 @@
 # 兼容移植系统（ColorOS 等）：ro.product.* 可能被改成别家，优先读 vendor/odm 分区
 g(){ for p; do v=$(getprop $p); [ -n "$v" ] && { echo "$v"; return; }; done; }
 DEV=$(g ro.product.vendor.device ro.product.odm.device ro.product.device)
-# 已适配机型（见 models.sh MODELS）：任一 device 属性是已适配代号就以它为准，vendor/odm 优先（dtbo 跟底包走）
-SUP=" dada haotian miro annibale warsaw pudding pandora popsicle nezha byron myron athens songyuan hongkong madrid "
+# 已收录机型代号（models.sh MODELS + v8.8.0 的 8550/8650 通用机型 vermeer/manet）：
+# 任一 device 属性是这些代号就以它为准，vendor/odm 优先（dtbo 跟底包走）
+SUP=" dada haotian miro annibale warsaw pudding pandora popsicle nezha byron myron athens songyuan hongkong madrid vermeer manet "
 case "$SUP" in *" $DEV "*) ;; *) for p in ro.product.vendor.device ro.product.odm.device ro.product.device ro.product.system.device; do v=$(getprop $p); case "$SUP" in *" $v "*) DEV=$v; break;; esac; done;; esac
 # 机型名：vendor/odm 优先（移植包常把 system 的 ro.product.* 改成「Xiaomi for arm64」之类的通用值）
 bad(){ case "$1" in ""|*" for arm64"*|*" for arm"*|*[Gg]eneric*|*AOSP*|*aosp*|mainline*|qssi*) return 0;; esac; return 1; }
@@ -18,6 +19,7 @@ if [ -z "$NAME" ]; then case "$DEV" in
   dada) NAME="Xiaomi 15";; haotian) NAME="Xiaomi 15 Pro";; miro) NAME="REDMI K80 Pro";; annibale) NAME="REDMI K90";; warsaw) NAME="REDMI K90 至尊版";;
   pudding) NAME="Xiaomi 17";; pandora) NAME="Xiaomi 17 Pro";; popsicle) NAME="Xiaomi 17 Pro Max";; nezha) NAME="Xiaomi 17 Ultra";; byron) NAME="Xiaomi 17 Max";;
   myron) NAME="REDMI K90 Pro Max";; athens) NAME="REDMI K100 Pro";; songyuan) NAME="REDMI K100 Pro Max";; hongkong) NAME="Xiaomi 18 Pro";; madrid) NAME="Xiaomi 18 Pro Max";;
+  vermeer) NAME="REDMI K70";; manet) NAME="REDMI K70 Pro";;
   *) NAME=$(gn ro.product.vendor.model ro.product.odm.model ro.product.model);; esac; fi
 OPL=$(getprop ro.build.version.oplusrom.display); [ -n "$OPL" ] || OPL=$(getprop ro.build.version.oplusrom)
 MI=$(g ro.mi.os.version.incremental)

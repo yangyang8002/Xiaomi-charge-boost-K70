@@ -6,6 +6,8 @@
 MODELS="dada haotian miro annibale warsaw pudding pandora popsicle nezha byron myron athens songyuan hongkong madrid"
 # SOC 处理器代号 = dtbo/<SOC>/ 模板目录（v8.7.0）：8750 骁龙8至尊版 / 8850 第五代骁龙8至尊版 / 8950、8975 小米18 系列（6.18 内核）
 # 6.12/6.18 内核机型（v8.7.0）：模板按 OS4 官方卡刷包里的原厂 dtbo 自动生成；私有协议节点布局与旧机型不同，不提供可选档位
+# 未收录模板的处理器（v8.8.0）：8550 骁龙8Gen2（红米K70 vermeer、POCO F6 Pro）/ 8650 骁龙8Gen3（红米K70 Pro manet、K70 至尊版以外的同代机型）
+# 这类机型没有 <代号>_os*.tpl 与 <代号>.avb，只能按通用模式安装：dtbo 逐项比对全部已收录模板，只写原厂值吻合的项
 model_info(){
   case "$1" in
     dada)     MN=小米15;            SOC=8750; MI=15500; MX=20500; SC=20000; VQ=4580; V0=3050; PW0=90;  PWO="100 120"; HZ=1; DEFT=dada;;
@@ -27,20 +29,30 @@ model_info(){
   esac
   MODNAME="${MN}充电加速模块"; return 0
 }
-# 通用加载（v8.5.9）：已适配机型用表内参数；未适配机型按通用参数运行（v8.7.1 起先过 platform_check，处理器不是 SM8750/8850/8950/8975 直接退出安装）
+# 通用加载（v8.5.9）：已适配机型用表内参数；未适配机型按通用参数运行（v8.7.1 起先过 platform_check，处理器不是 SOCS 里任一款直接退出安装）
+# v8.8.0：红米K70（vermeer，8550）、红米K70 Pro（manet，8650）就是走这条通用路径——没有原厂模板，dtbo 逐项比对
 # GEN=1 表示未适配机型：电流上限 20500、无私有协议档位、无屏幕超频，FFC 截止电压等一律保持本机原厂（dtbo 逐项比对，只写原厂值吻合的项）
 model_load(){
   if model_info "$1"; then GEN=0; return 0; fi
   GEN=1; MN=$(sh ${MCB_ROOT:-${0%/*}}/sysinfo.sh 2>/dev/null | sed -n 1p); [ -n "$MN" ] || MN=$(getprop ro.product.marketname); [ -n "$MN" ] || MN=小米
-  MI=15500; MX=20500; SC=20000; VQ=0; V0=3000; PW0=0; PWO=""; HZ=0; DEFT=""; SOC=$(soc_code)
+  MI=15500; MX=20500; SC=20000; VQ=0; V0=3000; PW0=0; PWO=""; HZ=0; DEFT=""; SOC=$(soc_code); [ -n "$SOC" ] || SOC=$(code_soc "$1")
   MODNAME="${MN}充电加速模块"; return 0
 }
+# 处理器兜底（v8.8.0）：个别底包/移植包读不到 ro.soc.model，按机型代号兜底，避免被 platform_check 误挡
+# 红米K70 vermeer / POCO F6 Pro = SM8550，红米K70 Pro manet = SM8650
+code_soc(){ case "$1" in vermeer) echo 8550;; manet) echo 8650;; *) :;; esac; }
 model_names(){ echo "小米15 / 小米15 Pro / 红米K80 Pro / 红米K90 / 红米K90至尊版 / 小米17 / 17 Pro / 17 Pro Max / 17 Ultra / 17 Max / 红米K90 Pro Max / 红米K100 Pro / K100 Pro Max / 小米18 Pro / 18 Pro Max"; }
 # 未适配机型的处理器代号：ro.soc.model（SM8850 → 8850），读不到为空（逐项比对时用全部模板）
 soc_code(){ for k in ro.soc.model ro.vendor.soc.model ro.boot.hardware.sku; do v=$(getprop $k); case "$v" in SM[0-9][0-9][0-9][0-9]*) v=${v#SM}; echo ${v%%[!0-9]*}; return;; esac; done; }
-# 处理器校验（v8.7.1）：只支持高通骁龙 SM8750/8850/8950/8975；天玑、玄戒后续不做适配。内核版本只识别显示，不拦截
+# 处理器校验（v8.7.1，v8.8.0 起加入 SM8550 / SM8650）：只支持高通骁龙 SM8550/8650/8750/8850/8950/8975；天玑、玄戒不做适配。
+# 内核版本只识别显示，不拦截
 # 输出处理器描述；返回 1 = 非适配机型。$1 = 机型表 SOC（已适配机型读不到 ro.soc.model 时兜底）
-SOCS="8750 8850 8950 8975"
+SOCS="8550 8650 8750 8850 8950 8975"
+# 已收录原厂 dtbo 模板（<代号>_os*.tpl + <代号>.avb）的处理器（v8.8.0）。
+# 不在这个表里的处理器（8550 / 8650）没有原厂模板可参照，只能走通用模式：dtbo 逐项比对，
+# 比对不到吻合项时 dtbo 不改动（v8.7.2 起这种情况会退出安装，见 customize.sh）
+TPL_SOCS="8750 8850 8950 8975"
+tpl_soc(){ case " $TPL_SOCS " in *" $1 "*) return 0;; esac; return 1; }
 kernel_ver(){ uname -r 2>/dev/null | sed -n 's/^\([0-9]*\.[0-9]*\).*/\1/p'; }
 platform_check(){
   mf=$(getprop ro.soc.manufacturer); sm=$(getprop ro.soc.model); hw="$(getprop ro.board.platform) $(getprop ro.hardware) $(getprop ro.boot.hardware)"

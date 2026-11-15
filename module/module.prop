@@ -1,6 +1,6 @@
 id=mi_charge_boost
 name=小米/红米充电加速模块
-version=v8.7.3
-versionCode=873
-author=酷安@鱼楠
-description=⏳ DTBO 已写入 原厂 / 原厂 / 原厂 / 满充 4620mV，重启生效 ｜ 低电量延迟关机 关 ｜ 公版PPS 关 ｜ 致谢：酷安@低线阻狂魔、酷安@花橋桥（PPS 节点）、内置 FreePPS（Seyud / 酷安@瓦力喀，GPL-3.0）
+version=v8.8.0-k70
+versionCode=880
+author=酷安@鱼楠（K70 适配：yangyang8002）
+description=红米 K70 / K70 Pro（vermeer / manet，SM8550 / SM8650）通用模式适配版 ｜ 基于 aichiyunan/Xiaomi-charge-boost v8.7.3
